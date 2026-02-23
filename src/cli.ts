@@ -17,6 +17,11 @@ import {
   generateFromKeyword,
   getAvailableKeywords,
 } from "./generator.js";
+import {
+  detectUserLanguage,
+  getKeywordDescription,
+  getLocalizedDescription,
+} from "./language.js";
 import { switchPersona, restoreBackup } from "./switcher.js";
 import type { PersonaStore } from "./types.js";
 
@@ -43,6 +48,10 @@ interface CliCommand {
 
 export function registerPersonaCli(ctx: CliContext): void {
   const persona = ctx.program.command("persona").description("人格面具 — 管理 agent 人格");
+  const language = detectUserLanguage(
+    [process.env.OPENCLAW_PERSONA_LANG, process.env.LC_ALL, process.env.LC_MESSAGES, process.env.LANG],
+    "zh",
+  );
 
   persona
     .command("list")
@@ -50,13 +59,13 @@ export function registerPersonaCli(ctx: CliContext): void {
     .action(() => {
       const all = getAllPersonas();
       const activeId = getActivePersonaId();
-      ctx.logger.info("🎭 可用人格:\n");
+      ctx.logger.info(language === "zh" ? "🎭 可用人格:\n" : "🎭 Available personas:\n");
       for (const [id, stored] of Object.entries(all)) {
         const active = id === activeId ? " ✅" : "";
-        const tag = stored.isBuiltIn ? "内置" : "自定义";
+        const tag = stored.isBuiltIn ? (language === "zh" ? "内置" : "Built-in") : language === "zh" ? "自定义" : "Custom";
         const arcana = stored.preset.arcana ? ` 「${stored.preset.arcana}」` : "";
         ctx.logger.info(`  ${stored.preset.identity.emoji} ${stored.preset.name} (${id}) [${tag}]${arcana}${active}`);
-        ctx.logger.info(`     ${stored.preset.description}\n`);
+        ctx.logger.info(`     ${getLocalizedDescription(stored.preset, language)}\n`);
       }
     });
 
@@ -72,7 +81,7 @@ export function registerPersonaCli(ctx: CliContext): void {
       }
       const { preset } = stored;
       ctx.logger.info(`🎭 ${preset.name} (${preset.id})`);
-      ctx.logger.info(`  ${preset.description}`);
+      ctx.logger.info(`  ${getLocalizedDescription(preset, language)}`);
       ctx.logger.info(`  身份: ${preset.identity.creature} ${preset.identity.emoji}`);
       ctx.logger.info(`  性格: ${preset.identity.vibe}`);
       if (preset.arcana) {
@@ -97,7 +106,10 @@ export function registerPersonaCli(ctx: CliContext): void {
         ctx.logger.error(`未找到人格: ${id}`);
         return;
       }
-      switchPersona(ctx.workspaceDir ?? join(homedir(), ".openclaw", "workspace"), stored.preset);
+      switchPersona(ctx.workspaceDir ?? join(homedir(), ".openclaw", "workspace"), {
+        ...stored.preset,
+        description: getLocalizedDescription(stored.preset, language),
+      });
       setActivePersonaId(id as string);
       ctx.logger.info(`✅ 已切换到 ${stored.preset.name} ${stored.preset.identity.emoji}`);
       ctx.logger.info("已更新 AGENTS.md、SOUL.md、IDENTITY.md（原文件已备份）");
@@ -118,20 +130,15 @@ export function registerPersonaCli(ctx: CliContext): void {
 
   persona
     .command("random")
-    .argument("<keyword>", "关键字 (rebel/sage/shadow/knight/trickster/oracle/phantom)")
-    .description("从关键字随机生成人格")
+    .argument("<keyword>", "关键字（支持任意文本）")
+    .description("从关键字随机生成人格（支持任意关键字）")
     .action((keyword: unknown) => {
       const kw = (keyword as string).toLowerCase();
-      const preset = generateFromKeyword(kw);
-      if (!preset) {
-        const available = getAvailableKeywords().join(", ");
-        ctx.logger.error(`未知关键字: ${kw}\n可用关键字: ${available}`);
-        return;
-      }
+      const preset = generateFromKeyword(kw, language);
       savePersona(preset);
       ctx.logger.info(`✅ 已随机生成人格 ${preset.name} (${preset.id}) 「${preset.arcana}」`);
       ctx.logger.info(`${preset.identity.emoji} ${preset.identity.creature}`);
-      ctx.logger.info(`  ${preset.identity.vibe}`);
+      ctx.logger.info(`  ${getLocalizedDescription(preset, language)}`);
       ctx.logger.info(`使用 'openclaw persona switch ${preset.id}' 来激活`);
     });
 
@@ -139,19 +146,15 @@ export function registerPersonaCli(ctx: CliContext): void {
     .command("keywords")
     .description("列出所有可用关键字")
     .action(() => {
-      ctx.logger.info("🎭 可用关键字:\n");
-      ctx.logger.info("输入 'openclaw persona random <keyword>' 快速生成随机人格\n");
-      const descriptions: Record<string, string> = {
-        rebel: "愚者 — 反叛者、挑战者、打破常规",
-        sage: "女教皇 — 智者、导师、洞察一切",
-        shadow: "月 — 暗影、探秘者、揭示隐藏真相",
-        knight: "正義 — 骑士、守护者、捍卫代码质量",
-        trickster: "魔術師 — 魔术师、万能手、灵活多变",
-        oracle: "隠者 — 预言者、数据驱动、洞察趋势",
-        phantom: "死神 — 幽灵、重构者、消灭死代码",
-      };
+      if (language === "zh") {
+        ctx.logger.info("🎭 可用关键字（示例）:\n");
+        ctx.logger.info("输入 'openclaw persona random <keyword>'，支持任意关键字；下列是推荐主题关键字\n");
+      } else {
+        ctx.logger.info("🎭 Example keywords:\n");
+        ctx.logger.info("Use 'openclaw persona random <keyword>' with any keyword; below are recommended themed seeds\n");
+      }
       for (const kw of getAvailableKeywords()) {
-        const desc = descriptions[kw] || kw;
+        const desc = getKeywordDescription(kw, language);
         ctx.logger.info(`  ${kw} — ${desc}`);
       }
     });

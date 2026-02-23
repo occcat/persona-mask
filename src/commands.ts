@@ -11,17 +11,13 @@ import {
   generateFromKeyword,
   getAvailableKeywords,
 } from "./generator.js";
+import {
+  detectUserLanguage,
+  getKeywordDescription,
+  getLocalizedDescription,
+} from "./language.js";
+import type { PersonaLanguage } from "./language.js";
 import { switchPersona, restoreBackup } from "./switcher.js";
-
-const KEYWORD_DESCRIPTIONS: Record<string, string> = {
-  rebel: "愚者 — 反叛者、挑战者、打破常规",
-  sage: "女教皇 — 智者、导师、洞察一切",
-  shadow: "月 — 暗影、探秘者、揭示隐藏真相",
-  knight: "正義 — 骑士、守护者、捍卫代码质量",
-  trickster: "魔術師 — 魔术师、万能手、灵活多变",
-  oracle: "隠者 — 预言者、数据驱动、洞察趋势",
-  phantom: "死神 — 幽灵、重构者、消灭死代码",
-};
 
 const HELP_TEXT = `🎭 **Persona Mask** — 人格面具
 
@@ -36,85 +32,128 @@ const HELP_TEXT = `🎭 **Persona Mask** — 人格面具
 - \`/persona restore\` — 恢复切换前的原始文件
 - \`/persona current\` — 显示当前激活的人格`;
 
-function formatPersonaList(): string {
+function formatPersonaList(language: PersonaLanguage): string {
   const all = getAllPersonas();
   const activeId = getActivePersonaId();
-  const lines: string[] = ["🎭 **可用人格:**\n"];
+  const title = language === "zh" ? "🎭 **可用人格:**\n" : "🎭 **Available Personas:**\n";
+  const lines: string[] = [title];
 
   for (const [id, stored] of Object.entries(all)) {
     const active = id === activeId ? " ✅" : "";
-    const tag = stored.isBuiltIn ? "内置" : "自定义";
+    const tag = stored.isBuiltIn ? (language === "zh" ? "内置" : "Built-in") : language === "zh" ? "自定义" : "Custom";
     const arcana = stored.preset.arcana ? ` 「${stored.preset.arcana}」` : "";
     lines.push(`- **${stored.preset.name}** (\`${id}\`) [${tag}]${arcana}${active}`);
-    lines.push(`  ${stored.preset.description}`);
+    lines.push(`  ${getLocalizedDescription(stored.preset, language)}`);
   }
 
   return lines.join("\n");
 }
 
-function formatKeywordList(): string {
+function formatKeywordList(language: PersonaLanguage): string {
   const keywords = getAvailableKeywords();
-  const lines: string[] = ["🎭 **可用关键字:**\n", "输入 `/persona random <keyword>` 快速生成随机人格\n"];
+  const lines: string[] =
+    language === "zh"
+      ? [
+          "🎭 **可用关键字（示例）:**\n",
+          "`/persona random <keyword>` 支持任意关键字；下面是推荐主题关键字：\n",
+        ]
+      : [
+          "🎭 **Example Keywords:**\n",
+          "`/persona random <keyword>` accepts any keyword; below are recommended themed seeds:\n",
+        ];
 
   for (const kw of keywords) {
-    const desc = KEYWORD_DESCRIPTIONS[kw] || kw;
+    const desc = getKeywordDescription(kw, language);
     lines.push(`- **${kw}** — ${desc}`);
   }
 
   return lines.join("\n");
 }
 
-function formatPersonaDetail(id: string): string {
+function formatPersonaDetail(id: string, language: PersonaLanguage): string {
   const stored = getPersona(id);
-  if (!stored) return `❌ 未找到人格: \`${id}\``;
+  if (!stored) return language === "zh" ? `❌ 未找到人格: \`${id}\`` : `❌ Persona not found: \`${id}\``;
 
   const { preset } = stored;
-  const arcanaLine = preset.arcana ? `\n**阿尔卡纳:** ${preset.arcana}` : "";
+  const arcanaLine = preset.arcana
+    ? language === "zh"
+      ? `\n**阿尔卡纳:** ${preset.arcana}`
+      : `\n**Arcana:** ${preset.arcana}`
+    : "";
   const keywordsLine =
     preset.keywords && preset.keywords.length > 0
-      ? `\n**关键字:** ${preset.keywords.join(", ")}`
+      ? language === "zh"
+        ? `\n**关键字:** ${preset.keywords.join(", ")}`
+        : `\n**Keywords:** ${preset.keywords.join(", ")}`
       : "";
+  const description = getLocalizedDescription(preset, language);
+  const soulSnippet = preset.soul.whoIAm.slice(0, 150);
 
-  const lines = [
-    `🎭 **${preset.name}** (\`${preset.id}\`)`,
-    `> ${preset.description}`,
-    "",
-    `**身份:** ${preset.identity.creature} ${preset.identity.emoji}`,
-    `**性格:** ${preset.identity.vibe}`,
-    arcanaLine,
-    keywordsLine,
-    "",
-    `**灵魂:** ${preset.soul.whoIAm.slice(0, 150)}...`,
-    "",
-    `**核心信念:** ${preset.soul.coreTruths.length} 条`,
-    `**边界:** ${preset.soul.boundaries.length} 条`,
-    "",
-    stored.isBuiltIn ? "📦 内置人格" : `🔧 自定义 (${stored.createdAt})`,
-  ];
+  const lines =
+    language === "zh"
+      ? [
+          `🎭 **${preset.name}** (\`${preset.id}\`)`,
+          `> ${description}`,
+          "",
+          `**身份:** ${preset.identity.creature} ${preset.identity.emoji}`,
+          `**性格:** ${preset.identity.vibe}`,
+          arcanaLine,
+          keywordsLine,
+          "",
+          `**灵魂:** ${soulSnippet}...`,
+          "",
+          `**核心信念:** ${preset.soul.coreTruths.length} 条`,
+          `**边界:** ${preset.soul.boundaries.length} 条`,
+          "",
+          stored.isBuiltIn ? "📦 内置人格" : `🔧 自定义 (${stored.createdAt})`,
+        ]
+      : [
+          `🎭 **${preset.name}** (\`${preset.id}\`)`,
+          `> ${description}`,
+          "",
+          `**Identity:** ${preset.identity.creature} ${preset.identity.emoji}`,
+          `**Vibe:** ${preset.identity.vibe}`,
+          arcanaLine,
+          keywordsLine,
+          "",
+          `**Soul:** ${soulSnippet}...`,
+          "",
+          `**Core Truths:** ${preset.soul.coreTruths.length}`,
+          `**Boundaries:** ${preset.soul.boundaries.length}`,
+          "",
+          stored.isBuiltIn ? "📦 Built-in persona" : `🔧 Custom (${stored.createdAt})`,
+        ];
 
   return lines.filter(Boolean).join("\n");
+}
+
+interface PersonaCommandRuntime {
+  commandBody?: string;
+  languageHint?: string;
 }
 
 export function handlePersonaCommand(
   args: string,
   workspaceDir: string,
+  runtime: PersonaCommandRuntime = {},
 ): { text: string } {
   const parts = args.trim().split(/\s+/);
   const subcommand = parts[0]?.toLowerCase();
+  const language = detectUserLanguage([runtime.languageHint, runtime.commandBody, args], "zh");
 
   if (!subcommand) return { text: HELP_TEXT };
 
   switch (subcommand) {
     case "list":
     case "ls": {
-      return { text: formatPersonaList() };
+      return { text: formatPersonaList(language) };
     }
 
     case "show":
     case "info": {
       const id = parts[1];
       if (!id) return { text: "用法: `/persona show <id>`" };
-      return { text: formatPersonaDetail(id) };
+      return { text: formatPersonaDetail(id, language) };
     }
 
     case "switch":
@@ -125,7 +164,10 @@ export function handlePersonaCommand(
       const stored = getPersona(id);
       if (!stored) return { text: `❌ 未找到人格: \`${id}\`` };
 
-      switchPersona(workspaceDir, stored.preset);
+      switchPersona(workspaceDir, {
+        ...stored.preset,
+        description: getLocalizedDescription(stored.preset, language),
+      });
       setActivePersonaId(id);
       return {
         text: `✅ 已切换到 **${stored.preset.name}** ${stored.preset.identity.emoji}\n\n已更新 AGENTS.md、SOUL.md、IDENTITY.md（原文件已备份到 .persona-backup/）`,
@@ -151,26 +193,31 @@ export function handlePersonaCommand(
 
     case "random":
     case "rand": {
-      const keyword = parts[1]?.toLowerCase();
+      const keyword = parts.slice(1).join(" ").trim().toLowerCase();
       if (!keyword) {
-        return { text: "用法: `/persona random <keyword>`\n\n使用 `/persona keywords` 查看所有可用关键字" };
+        return {
+          text:
+            language === "zh"
+              ? "用法: `/persona random <keyword>`\n\n支持任意关键字；使用 `/persona keywords` 查看推荐关键字"
+              : "Usage: `/persona random <keyword>`\n\nAny keyword is supported; use `/persona keywords` for themed examples",
+        };
       }
 
-      const preset = generateFromKeyword(keyword);
-      if (!preset) {
-        const available = getAvailableKeywords().join(", ");
-        return { text: `❌ 未知关键字: \`${keyword}\`\n\n可用关键字: ${available}` };
-      }
+      const preset = generateFromKeyword(keyword, language);
 
       savePersona(preset);
+      const description = getLocalizedDescription(preset, language);
       return {
-        text: `✅ 已随机生成人格 **${preset.name}** (\`${preset.id}\`) 「${preset.arcana}」\n${preset.identity.emoji} ${preset.identity.creature}\n> ${preset.identity.vibe}\n\n使用 \`/persona switch ${preset.id}\` 来激活`,
+        text:
+          language === "zh"
+            ? `✅ 已随机生成人格 **${preset.name}** (\`${preset.id}\`) 「${preset.arcana}」\n${preset.identity.emoji} ${preset.identity.creature}\n> ${description}\n\n使用 \`/persona switch ${preset.id}\` 来激活`
+            : `✅ Random persona created **${preset.name}** (\`${preset.id}\`) 「${preset.arcana}」\n${preset.identity.emoji} ${preset.identity.creature}\n> ${description}\n\nUse \`/persona switch ${preset.id}\` to activate`,
       };
     }
 
     case "keywords":
     case "kw": {
-      return { text: formatKeywordList() };
+      return { text: formatKeywordList(language) };
     }
 
     case "delete":

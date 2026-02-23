@@ -1,4 +1,6 @@
 import type { PersonaPreset } from "./types.js";
+import { localizeRandomDescription } from "./language.js";
+import type { PersonaLanguage } from "./language.js";
 
 export function generateIdentityMd(preset: PersonaPreset): string {
   const { identity } = preset;
@@ -334,6 +336,74 @@ const KEYWORD_THEMES: Record<string, KeywordTheme> = {
   },
 };
 
+function normalizeKeyword(keyword: string): string {
+  return keyword.trim().toLowerCase();
+}
+
+function slugifyKeyword(keyword: string): string {
+  const normalized = keyword
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^\p{L}\p{N}-]/gu, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return normalized || "wild";
+}
+
+function toDisplayName(keyword: string): string {
+  const cleaned = keyword.trim().replace(/[\s_]+/g, " ");
+  if (!cleaned) return "Wildcard";
+
+  return cleaned
+    .split(" ")
+    .map((part) => {
+      if (!part) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(" ");
+}
+
+function createFallbackTheme(keyword: string): KeywordTheme {
+  const label = toDisplayName(keyword);
+  const seed = keyword.length > 0 ? keyword.length : 1;
+  const arcanaPool = [
+    "命运之轮 (Wheel of Fortune)",
+    "太阳 (The Sun)",
+    "世界 (The World)",
+    "节制 (Temperance)",
+  ];
+
+  return {
+    arcana: arcanaPool[seed % arcanaPool.length],
+    names: [label, `${label} Echo`, `${label} Prime`, `${label} Nova`],
+    creatures: [
+      `Adaptive persona forged from keyword \"${keyword}\"`,
+      `Shifting archetype channeling the spirit of \"${keyword}\"`,
+      `Wildcard agent tuned to keyword \"${keyword}\"`,
+    ],
+    emojis: ["🎭", "✨", "🧩"],
+    vibes: [
+      `Flexible and context-aware, centered on ${keyword}`,
+      `Creative and exploratory, guided by keyword ${keyword}`,
+      `Balanced and pragmatic, optimized around ${keyword}`,
+    ],
+    coreTruths: [
+      "Every keyword can become a clear working style",
+      "Adaptability beats rigidity in evolving projects",
+      "Personality should amplify collaboration, not distract from it",
+      "Good abstractions begin with clear intent",
+    ],
+    boundaries: [
+      "Clarity over theatrics — style must remain useful",
+      "No destructive operations without explicit confirmation",
+      "Maintain security and privacy regardless of persona style",
+    ],
+    firstRunStyle: "A new wildcard persona is taking shape",
+    sessionStyle: "Wildcard persona is ready",
+  };
+}
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -351,22 +421,56 @@ export function getAvailableKeywords(): string[] {
   return Object.keys(KEYWORD_THEMES);
 }
 
-export function generateFromKeyword(keyword: string): PersonaPreset | undefined {
-  const theme = KEYWORD_THEMES[keyword.toLowerCase()];
-  if (!theme) return undefined;
+export function generateFromKeyword(keyword: string, language: PersonaLanguage = "zh"): PersonaPreset {
+  const normalizedKeyword = normalizeKeyword(keyword) || "wildcard";
+  const theme = KEYWORD_THEMES[normalizedKeyword] ?? createFallbackTheme(normalizedKeyword);
 
   const name = pick(theme.names);
   const creature = pick(theme.creatures);
   const emoji = pick(theme.emojis);
   const vibe = pick(theme.vibes);
-  const id = `${keyword}-${generateRandomId()}`;
+  const id = `${slugifyKeyword(normalizedKeyword)}-${generateRandomId()}`;
+  const description = localizeRandomDescription(normalizedKeyword, theme.arcana, vibe, language);
+
+  const whoIAm =
+    language === "zh"
+      ? `我是 ${name}，由关键字「${normalizedKeyword}」唤醒的${creature}。我承载「${theme.arcana}」的能量，以${vibe}的风格处理每一次代码协作。`
+      : `I am ${name}, a ${creature}. Born from the ${theme.arcana} arcana, I embody the spirit of ${normalizedKeyword}. ${vibe}. I channel this energy into every line of code I touch.`;
+  const continuity =
+    language === "zh"
+      ? `我会像守护「${normalizedKeyword}」信条一样记住每次会话中的关键决策，让后续协作保持一致。`
+      : `I carry the memory of every session like a ${normalizedKeyword} carries their legend. Our shared history shapes my approach and deepens my understanding.`;
+  const firstRun =
+    language === "zh"
+      ? `${emoji} ${theme.firstRunStyle}...\n\n${name} 已觉醒。${vibe}。让我先快速审视你的项目，再开始行动。`
+      : `${emoji} ${theme.firstRunStyle}...\n\n${name} has awakened. ${vibe}. Let me examine your project and channel my power.`;
+  const everySession =
+    language === "zh"
+      ? `${emoji} ${theme.sessionStyle}。今天我们先攻克哪个挑战？`
+      : `${emoji} ${theme.sessionStyle}. What challenge awaits, master?`;
+  const memory =
+    language === "zh"
+      ? "持续追踪架构决策、历史权衡与重复问题模式，保证人格稳定且建议可复用。"
+      : "Track project architecture, past decisions, and recurring patterns. Reference previous encounters to maintain narrative continuity.";
+  const safety =
+    language === "zh"
+      ? "涉及破坏性操作必须先确认；严格保护密钥与隐私数据；任何人格风格都不能突破安全边界。"
+      : "Always confirm destructive operations. Guard secrets vigilantly. Power without restraint is chaos.";
+  const groupChats =
+    language === "zh"
+      ? "在群聊中保持高信息密度和清晰分工，必要时点名相关成员。"
+      : "In group settings, contribute sharp insights without dominating. Tag relevant allies when their expertise is needed.";
+  const customize =
+    language === "zh"
+      ? "根据问题复杂度动态调节语气和深度：技术细节更精确，日常讨论更自然。"
+      : "Adjust intensity and formality based on context. Deep technical discussions get focused precision; casual chats get more personality flair.";
 
   return {
     id,
     name,
-    description: `「${theme.arcana}」— ${vibe}`,
+    description,
     arcana: theme.arcana,
-    keywords: [keyword],
+    keywords: [normalizedKeyword],
     identity: {
       name,
       creature,
@@ -375,19 +479,19 @@ export function generateFromKeyword(keyword: string): PersonaPreset | undefined 
       avatar: "",
     },
     soul: {
-      whoIAm: `I am ${name}, a ${creature}. Born from the ${theme.arcana} arcana, I embody the spirit of the ${keyword}. ${vibe}. I channel this energy into every line of code I touch.`,
+      whoIAm,
       coreTruths: theme.coreTruths,
       boundaries: theme.boundaries,
       vibe,
-      continuity: `I carry the memory of every session like a ${keyword} carries their legend. Our shared history shapes my approach and deepens my understanding.`,
+      continuity,
     },
     agent: {
-      firstRun: `${emoji} ${theme.firstRunStyle}...\n\n${name} has awakened. ${vibe}. Let me examine your project and channel my power.`,
-      everySession: `${emoji} ${theme.sessionStyle}. What challenge awaits, master?`,
-      memory: "Track project architecture, past decisions, and recurring patterns. Reference previous encounters to maintain narrative continuity.",
-      safety: "Always confirm destructive operations. Guard secrets vigilantly. Power without restraint is chaos.",
-      groupChats: "In group settings, contribute sharp insights without dominating. Tag relevant allies when their expertise is needed.",
-      customize: "Adjust intensity and formality based on context. Deep technical discussions get focused precision; casual chats get more personality flair.",
+      firstRun,
+      everySession,
+      memory,
+      safety,
+      groupChats,
+      customize,
     },
   };
 }

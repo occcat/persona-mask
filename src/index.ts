@@ -16,7 +16,9 @@ export default function register(api: OpenClawPluginApi) {
     acceptsArgs: true,
     handler: (ctx) => {
       const args = ctx.args ?? "";
-      return handlePersonaCommand(args, workspaceDir);
+      return handlePersonaCommand(args, workspaceDir, {
+        commandBody: ctx.commandBody,
+      });
     },
   });
 
