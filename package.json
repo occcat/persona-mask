@@ -1,6 +1,6 @@
 {
   "name": "persona-mask",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "人格面具 — OpenClaw persona generator and switcher plugin",
   "type": "module",
   "openclaw": {
@@ -9,7 +9,8 @@
     ]
   },
   "files": [
-    "src"
+    "src",
+    "openclaw.plugin.json"
   ],
   "keywords": [
     "openclaw",
