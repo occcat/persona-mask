@@ -1,0 +1,6 @@
+{
+  "id": "persona-mask",
+  "name": "Persona Mask",
+  "description": "人格面具 — Generate and switch agent personas with simple prompts",
+  "configSchema": {}
+}
