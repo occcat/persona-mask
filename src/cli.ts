@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { readFileSync, writeFileSync } from "node:fs";
 
 import {
@@ -19,7 +21,7 @@ interface CliContext {
     command: (name: string) => CliCommand;
   };
   config: Record<string, unknown>;
-  workspaceDir: string;
+  workspaceDir?: string;
   logger: {
     info: (msg: string) => void;
     error: (msg: string) => void;
@@ -84,7 +86,7 @@ export function registerPersonaCli(ctx: CliContext): void {
         ctx.logger.error(`未找到人格: ${id}`);
         return;
       }
-      switchPersona(ctx.workspaceDir, stored.preset);
+      switchPersona(ctx.workspaceDir ?? join(homedir(), ".openclaw", "workspace"), stored.preset);
       setActivePersonaId(id as string);
       ctx.logger.info(`✅ 已切换到 ${stored.preset.name} ${stored.preset.identity.emoji}`);
       ctx.logger.info("已更新 AGENTS.md、SOUL.md、IDENTITY.md（原文件已备份）");
@@ -120,7 +122,7 @@ export function registerPersonaCli(ctx: CliContext): void {
     .command("restore")
     .description("恢复切换前的原始人格文件")
     .action(() => {
-      const restored = restoreBackup(ctx.workspaceDir);
+      const restored = restoreBackup(ctx.workspaceDir ?? join(homedir(), ".openclaw", "workspace"));
       if (!restored) {
         ctx.logger.error("没有找到备份文件");
         return;

@@ -2,7 +2,6 @@
   "name": "@openclaw/persona-mask",
   "version": "0.0.1",
   "description": "人格面具 — OpenClaw persona generator and switcher plugin",
-  "private": true,
   "type": "module",
   "openclaw": {
     "extensions": [
@@ -20,7 +19,7 @@
     "identity"
   ],
   "license": "MIT",
-  "devDependencies": {
-    "openclaw": "workspace:*"
+  "peerDependencies": {
+    "openclaw": "*"
   }
 }

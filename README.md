@@ -22,12 +22,15 @@ OpenClaw 插件 — 通过简单的提示词生成丰富的 agent 人格描述�
 | `butler` | Reginald | 提供无可挑剔代码服务的维多利亚管家 |
 
 ## 安装
-
-将本插件放置到 OpenClaw 的 `extensions/` 目录下：
-
 ```bash
-cd /path/to/openclaw/extensions
-git clone https://github.com/occcat/persona-mask.git
+# 从 npm 安装
+openclaw plugins install persona-mask
+
+# 或从 GitHub 安装
+openclaw plugins install https://github.com/occcat/persona-mask
+
+# 本地开发安装
+openclaw plugins install -l ./path/to/persona-mask
 ```
 
 ## 使用
