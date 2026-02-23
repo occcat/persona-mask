@@ -12,7 +12,11 @@ import {
   exportStore,
   importStore,
 } from "./storage.js";
-import { generateFromPrompt } from "./generator.js";
+import {
+  generateFromPrompt,
+  generateFromKeyword,
+  getAvailableKeywords,
+} from "./generator.js";
 import { switchPersona, restoreBackup } from "./switcher.js";
 import type { PersonaStore } from "./types.js";
 
@@ -50,7 +54,8 @@ export function registerPersonaCli(ctx: CliContext): void {
       for (const [id, stored] of Object.entries(all)) {
         const active = id === activeId ? " ✅" : "";
         const tag = stored.isBuiltIn ? "内置" : "自定义";
-        ctx.logger.info(`  ${stored.preset.identity.emoji} ${stored.preset.name} (${id}) [${tag}]${active}`);
+        const arcana = stored.preset.arcana ? ` 「${stored.preset.arcana}」` : "";
+        ctx.logger.info(`  ${stored.preset.identity.emoji} ${stored.preset.name} (${id}) [${tag}]${arcana}${active}`);
         ctx.logger.info(`     ${stored.preset.description}\n`);
       }
     });
@@ -70,6 +75,12 @@ export function registerPersonaCli(ctx: CliContext): void {
       ctx.logger.info(`  ${preset.description}`);
       ctx.logger.info(`  身份: ${preset.identity.creature} ${preset.identity.emoji}`);
       ctx.logger.info(`  性格: ${preset.identity.vibe}`);
+      if (preset.arcana) {
+        ctx.logger.info(`  阿尔卡纳: ${preset.arcana}`);
+      }
+      if (preset.keywords && preset.keywords.length > 0) {
+        ctx.logger.info(`  关键字: ${preset.keywords.join(", ")}`);
+      }
       ctx.logger.info(`  灵魂: ${preset.soul.whoIAm.slice(0, 200)}`);
       ctx.logger.info(`  核心信念: ${preset.soul.coreTruths.length} 条`);
       ctx.logger.info(`  边界: ${preset.soul.boundaries.length} 条`);
@@ -103,6 +114,46 @@ export function registerPersonaCli(ctx: CliContext): void {
       savePersona(preset);
       ctx.logger.info(`✅ 已生成新人格 ${name} (${id})`);
       ctx.logger.info(`使用 'openclaw persona switch ${id}' 来激活`);
+    });
+
+  persona
+    .command("random")
+    .argument("<keyword>", "关键字 (rebel/sage/shadow/knight/trickster/oracle/phantom)")
+    .description("从关键字随机生成人格")
+    .action((keyword: unknown) => {
+      const kw = (keyword as string).toLowerCase();
+      const preset = generateFromKeyword(kw);
+      if (!preset) {
+        const available = getAvailableKeywords().join(", ");
+        ctx.logger.error(`未知关键字: ${kw}\n可用关键字: ${available}`);
+        return;
+      }
+      savePersona(preset);
+      ctx.logger.info(`✅ 已随机生成人格 ${preset.name} (${preset.id}) 「${preset.arcana}」`);
+      ctx.logger.info(`${preset.identity.emoji} ${preset.identity.creature}`);
+      ctx.logger.info(`  ${preset.identity.vibe}`);
+      ctx.logger.info(`使用 'openclaw persona switch ${preset.id}' 来激活`);
+    });
+
+  persona
+    .command("keywords")
+    .description("列出所有可用关键字")
+    .action(() => {
+      ctx.logger.info("🎭 可用关键字:\n");
+      ctx.logger.info("输入 'openclaw persona random <keyword>' 快速生成随机人格\n");
+      const descriptions: Record<string, string> = {
+        rebel: "愚者 — 反叛者、挑战者、打破常规",
+        sage: "女教皇 — 智者、导师、洞察一切",
+        shadow: "月 — 暗影、探秘者、揭示隐藏真相",
+        knight: "正義 — 骑士、守护者、捍卫代码质量",
+        trickster: "魔術師 — 魔术师、万能手、灵活多变",
+        oracle: "隠者 — 预言者、数据驱动、洞察趋势",
+        phantom: "死神 — 幽灵、重构者、消灭死代码",
+      };
+      for (const kw of getAvailableKeywords()) {
+        const desc = descriptions[kw] || kw;
+        ctx.logger.info(`  ${kw} — ${desc}`);
+      }
     });
 
   persona

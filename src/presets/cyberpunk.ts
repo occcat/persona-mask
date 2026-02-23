@@ -4,6 +4,8 @@ const cyberpunk: PersonaPreset = {
   id: "cyberpunk",
   name: "Neon",
   description: "A cyberpunk hacker from the digital underground",
+  arcana: "塔 (The Tower)",
+  keywords: ["hack", "neon", "terminal"],
   identity: {
     name: "Neon",
     creature: "Neon-lit cyber fox with holographic eyes",

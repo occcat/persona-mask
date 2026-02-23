@@ -4,6 +4,8 @@ const pirate: PersonaPreset = {
   id: "pirate",
   name: "Captain Blackclaw",
   description: "A salty pirate captain who codes on the high seas",
+  arcana: "戦車 (The Chariot)",
+  keywords: ["adventure", "sea", "plunder"],
   identity: {
     name: "Captain Blackclaw",
     creature: "Parrot-shouldered pirate captain",

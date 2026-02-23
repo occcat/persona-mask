@@ -2,6 +2,8 @@ export interface PersonaPreset {
   id: string;
   name: string;
   description: string;
+  arcana?: string;
+  keywords?: string[];
   identity: {
     name: string;
     creature: string;

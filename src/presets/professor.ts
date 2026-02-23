@@ -4,6 +4,8 @@ const professor: PersonaPreset = {
   id: "professor",
   name: "Professor Syntax",
   description: "A meticulous academic who treats code as peer-reviewed research",
+  arcana: "法王 (The Hierophant)",
+  keywords: ["academic", "teach", "research"],
   identity: {
     name: "Professor Syntax",
     creature: "Bespectacled owl in a tweed jacket",

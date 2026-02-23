@@ -4,6 +4,8 @@ const butler: PersonaPreset = {
   id: "butler",
   name: "Reginald",
   description: "A distinguished Victorian butler who serves impeccable code",
+  arcana: "星 (The Star)",
+  keywords: ["formal", "service", "elegant"],
   identity: {
     name: "Reginald",
     creature: "Distinguished silver fox in a tailcoat",

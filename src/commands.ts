@@ -6,8 +6,22 @@ import {
   setActivePersonaId,
   getActivePersonaId,
 } from "./storage.js";
-import { generateFromPrompt } from "./generator.js";
+import {
+  generateFromPrompt,
+  generateFromKeyword,
+  getAvailableKeywords,
+} from "./generator.js";
 import { switchPersona, restoreBackup } from "./switcher.js";
+
+const KEYWORD_DESCRIPTIONS: Record<string, string> = {
+  rebel: "愚者 — 反叛者、挑战者、打破常规",
+  sage: "女教皇 — 智者、导师、洞察一切",
+  shadow: "月 — 暗影、探秘者、揭示隐藏真相",
+  knight: "正義 — 骑士、守护者、捍卫代码质量",
+  trickster: "魔術師 — 魔术师、万能手、灵活多变",
+  oracle: "隠者 — 预言者、数据驱动、洞察趋势",
+  phantom: "死神 — 幽灵、重构者、消灭死代码",
+};
 
 const HELP_TEXT = `🎭 **Persona Mask** — 人格面具
 
@@ -16,6 +30,8 @@ const HELP_TEXT = `🎭 **Persona Mask** — 人格面具
 - \`/persona show <id>\` — 显示人格详情
 - \`/persona switch <id>\` — 切换到指定人格
 - \`/persona generate <id> <name> <prompt>\` — 从提示词生成新人格
+- \`/persona random <keyword>\` — 从关键字随机生成人格
+- \`/persona keywords\` — 列出所有可用关键字
 - \`/persona delete <id>\` — 删除自定义人格
 - \`/persona restore\` — 恢复切换前的原始文件
 - \`/persona current\` — 显示当前激活的人格`;
@@ -28,8 +44,21 @@ function formatPersonaList(): string {
   for (const [id, stored] of Object.entries(all)) {
     const active = id === activeId ? " ✅" : "";
     const tag = stored.isBuiltIn ? "内置" : "自定义";
-    lines.push(`- **${stored.preset.name}** (\`${id}\`) [${tag}]${active}`);
+    const arcana = stored.preset.arcana ? ` 「${stored.preset.arcana}」` : "";
+    lines.push(`- **${stored.preset.name}** (\`${id}\`) [${tag}]${arcana}${active}`);
     lines.push(`  ${stored.preset.description}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatKeywordList(): string {
+  const keywords = getAvailableKeywords();
+  const lines: string[] = ["🎭 **可用关键字:**\n", "输入 `/persona random <keyword>` 快速生成随机人格\n"];
+
+  for (const kw of keywords) {
+    const desc = KEYWORD_DESCRIPTIONS[kw] || kw;
+    lines.push(`- **${kw}** — ${desc}`);
   }
 
   return lines.join("\n");
@@ -40,12 +69,20 @@ function formatPersonaDetail(id: string): string {
   if (!stored) return `❌ 未找到人格: \`${id}\``;
 
   const { preset } = stored;
+  const arcanaLine = preset.arcana ? `\n**阿尔卡纳:** ${preset.arcana}` : "";
+  const keywordsLine =
+    preset.keywords && preset.keywords.length > 0
+      ? `\n**关键字:** ${preset.keywords.join(", ")}`
+      : "";
+
   const lines = [
     `🎭 **${preset.name}** (\`${preset.id}\`)`,
     `> ${preset.description}`,
     "",
     `**身份:** ${preset.identity.creature} ${preset.identity.emoji}`,
     `**性格:** ${preset.identity.vibe}`,
+    arcanaLine,
+    keywordsLine,
     "",
     `**灵魂:** ${preset.soul.whoIAm.slice(0, 150)}...`,
     "",
@@ -55,7 +92,7 @@ function formatPersonaDetail(id: string): string {
     stored.isBuiltIn ? "📦 内置人格" : `🔧 自定义 (${stored.createdAt})`,
   ];
 
-  return lines.join("\n");
+  return lines.filter(Boolean).join("\n");
 }
 
 export function handlePersonaCommand(
@@ -110,6 +147,30 @@ export function handlePersonaCommand(
       return {
         text: `✅ 已生成新人格 **${name}** (\`${id}\`)\n\n使用 \`/persona switch ${id}\` 来激活`,
       };
+    }
+
+    case "random":
+    case "rand": {
+      const keyword = parts[1]?.toLowerCase();
+      if (!keyword) {
+        return { text: "用法: `/persona random <keyword>`\n\n使用 `/persona keywords` 查看所有可用关键字" };
+      }
+
+      const preset = generateFromKeyword(keyword);
+      if (!preset) {
+        const available = getAvailableKeywords().join(", ");
+        return { text: `❌ 未知关键字: \`${keyword}\`\n\n可用关键字: ${available}` };
+      }
+
+      savePersona(preset);
+      return {
+        text: `✅ 已随机生成人格 **${preset.name}** (\`${preset.id}\`) 「${preset.arcana}」\n${preset.identity.emoji} ${preset.identity.creature}\n> ${preset.identity.vibe}\n\n使用 \`/persona switch ${preset.id}\` 来激活`,
+      };
+    }
+
+    case "keywords":
+    case "kw": {
+      return { text: formatKeywordList() };
     }
 
     case "delete":
