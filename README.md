@@ -1,5 +1,6 @@
 # 人格面具 (Persona Mask)
-
+[![npm version](https://img.shields.io/npm/v/persona-mask.svg)](https://www.npmjs.com/package/persona-mask)
+[![license](https://img.shields.io/npm/l/persona-mask.svg)](https://github.com/occcat/persona-mask/blob/main/LICENSE)
 OpenClaw 插件 — 通过简单的提示词生成丰富的 agent 人格描述，并随时通过命令切换。灵感来自女神异闻录 (Persona) 的面具与阿尔卡纳系统。
 
 ## 功能
@@ -56,14 +57,14 @@ OpenClaw 插件 — 通过简单的提示词生成丰富的 agent 人格描述�
 ## 安装
 
 ```bash
-# 从 npm 安装
 openclaw plugins install persona-mask
+```
 
-# 或从 GitHub 安装
-openclaw plugins install https://github.com/occcat/persona-mask
+本地开发：
 
-# 本地开发安装
-openclaw plugins install -l ./path/to/persona-mask
+```bash
+git clone https://github.com/occcat/persona-mask.git
+openclaw plugins install -l ./persona-mask
 ```
 
 ## 使用
