@@ -8,12 +8,13 @@ const BACKUP_DIR_NAME = ".persona-backup";
 function backupFile(workspaceDir: string, filename: string): void {
   const src = join(workspaceDir, filename);
   if (!existsSync(src)) return;
-
   const backupDir = join(workspaceDir, BACKUP_DIR_NAME);
   if (!existsSync(backupDir)) {
     mkdirSync(backupDir, { recursive: true });
   }
   const dest = join(backupDir, filename);
+  // Only backup once — preserve the original pre-persona config
+  if (existsSync(dest)) return;
   copyFileSync(src, dest);
 }
 
